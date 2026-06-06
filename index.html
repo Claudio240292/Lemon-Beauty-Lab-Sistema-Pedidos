@@ -224,9 +224,10 @@ const CATS = Object.keys(CAT);
 let activeCat = CATS[0];
 let qtys = {};
 
-// Build pills
-const catsEl = document.getElementById('cats');
-CATS.forEach(c => {
+// Build pills - wait for DOM
+window.addEventListener('DOMContentLoaded', function() {
+  const catsEl = document.getElementById('cats');
+  CATS.forEach(c => {
   const b = document.createElement('button');
   b.className = 'cpill' + (c === activeCat ? ' active' : '');
   b.textContent = c;
@@ -237,8 +238,10 @@ CATS.forEach(c => {
     document.getElementById('search').value = '';
     render();
   };
-  catsEl.appendChild(b);
-});
+    catsEl.appendChild(b);
+  });
+  render();
+}); // end DOMContentLoaded
 
 function render() {
   const q = document.getElementById('search').value.toLowerCase().trim();
@@ -439,7 +442,6 @@ function isBlankCanvas() {
 }
 
 // fecha se setea al abrir la tab de entrega
-render();
 </script>
 </body>
 </html>
