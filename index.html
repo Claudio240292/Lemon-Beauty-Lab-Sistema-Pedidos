@@ -161,16 +161,48 @@ canvas{display:block;width:100%;height:100px;background:#fff;border-radius:7px;b
 <div class="view" id="v-entrega">
   <div class="fcard">
     <div class="ftit">📋 Comprobante de entrega</div>
-    <div class="fgrid">
-      <div class="fi">Sucursal: <b>Mitikah</b></div>
-      <div class="fi">Fecha: <b id="fdate"></b></div>
-      <div class="fi">Auxiliar: <b>Carlos R.</b></div>
-      <div class="fi">Artículos: <b>11 piezas</b></div>
+
+    <!-- Campos editables -->
+    <div class="fgrid" style="margin-bottom:14px">
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:4px">Sucursal</label>
+        <select id="e-sucursal" style="width:100%;border:1px solid #ddd;border-radius:10px;padding:9px 10px;font-size:13px;background:#fff;color:#1a1a1a;-webkit-appearance:none">
+          <option>Santa Fé</option><option>Polanco</option><option selected>Mitikah</option>
+          <option>Insurgentes</option><option>Durango</option><option>Interlomas</option>
+          <option>Satélite</option><option>Perisur</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:4px">Fecha</label>
+        <input type="date" id="e-fecha" style="width:100%;border:1px solid #ddd;border-radius:10px;padding:9px 10px;font-size:13px;background:#fff;color:#1a1a1a">
+      </div>
     </div>
-    <div class="chk-sec">Verificar artículos entregados</div>
-    <div class="chk"><div class="cb" onclick="chk(this)"></div><span>CND Shellac — Aurora × 2</span></div>
-    <div class="chk"><div class="cb" onclick="chk(this)"></div><span>iNOA — 7.13 × 3</span></div>
-    <div class="chk"><div class="cb" onclick="chk(this)"></div><span>Ampolletas Beauty Gemesis × 6</span></div>
+
+    <div style="background:#f0f7f3;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#1a6b3c;font-weight:500">
+      🚚 Auxiliar: Edison
+    </div>
+
+    <!-- Buscador de artículos -->
+    <div style="margin-bottom:10px">
+      <label style="font-size:11px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:6px">Artículos entregados</label>
+      <input type="search" id="e-search" placeholder="Buscar artículo..." oninput="renderEntregaList()"
+        style="width:100%;border:1px solid #ddd;border-radius:10px;padding:10px 12px;font-size:13px;background:#fff;color:#1a1a1a;margin-bottom:6px">
+      <div id="e-items" style="background:#fff;border:1px solid #eee;border-radius:10px;max-height:220px;overflow-y:auto;-webkit-overflow-scrolling:touch"></div>
+    </div>
+
+    <!-- Resumen seleccionados -->
+    <div id="e-resumen" style="background:#f9f9f9;border-left:4px solid #1a6b3c;border-radius:4px;padding:10px 14px;margin-bottom:14px;display:none">
+      <p style="margin:0 0 6px;font-size:11px;font-weight:600;color:#1a6b3c;text-transform:uppercase;letter-spacing:.05em">Artículos a entregar</p>
+      <div id="e-resumen-list" style="font-size:13px;color:#1a1a1a;line-height:1.8"></div>
+    </div>
+
+    <!-- Observaciones -->
+    <div style="margin-bottom:14px">
+      <label style="font-size:11px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:6px">Nombre de quien recibe + observaciones</label>
+      <textarea id="obs-entrega" style="width:100%;border:1px solid #ddd;border-radius:10px;padding:10px 12px;font-size:13px;font-family:inherit;background:#fff;color:#1a1a1a;resize:vertical;min-height:60px" placeholder="Ej: María González — Todo correcto, faltó 1 pieza de CND..."></textarea>
+    </div>
+
+    <!-- Firma -->
     <div class="firma-wrap">
       <div class="firma-lbl">
         <span>✍️ Firma de quien recibe</span>
@@ -179,6 +211,7 @@ canvas{display:block;width:100%;height:100px;background:#fff;border-radius:7px;b
       <canvas id="firma"></canvas>
       <div style="font-size:10px;color:#bbb;margin-top:5px;text-align:center">Firma con el dedo directamente en la pantalla</div>
     </div>
+
     <button class="btn-confirmar" onclick="confirmar()">✅ Confirmar entrega</button>
     <div class="ok2" id="ok2">✅ Entrega registrada con firma digital. Pedido archivado.</div>
   </div>
@@ -249,7 +282,7 @@ function enviar() {
   // Armar resumen del pedido
   const pedido = Object.entries(qtys)
     .filter(([k,v]) => v > 0)
-    .map(([k,v]) => k + ' x' + v)
+    .map(([k,v]) => '• ' + k + '  x' + v)
     .join('\n');
 
   if (!pedido) { alert('Agrega al menos un artículo al pedido.'); return; }
@@ -289,12 +322,57 @@ function sw(v) {
   document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
   document.getElementById('v-' + v).classList.add('active');
   document.getElementById('t-' + v).classList.add('active');
-  if (v === 'entrega') initC();
+  if (v === 'entrega') {
+    initC();
+    renderEntregaList();
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('e-fecha').value = today;
+  }
 }
 
 function filtrar(btn) {
   document.querySelectorAll('.fbt').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
+}
+
+// Entrega artículos
+let eQtys = {};
+function renderEntregaList() {
+  const q = document.getElementById('e-search').value.toLowerCase().trim();
+  const list = document.getElementById('e-items');
+  list.innerHTML = '';
+  const all = Object.values(CAT).flat();
+  const filtered = q ? all.filter(i => i.label.toLowerCase().includes(q)) : all.slice(0, 60);
+
+  filtered.slice(0, 80).forEach(item => {
+    const k = item.label;
+    const v = eQtys[k] || 0;
+    const row = document.createElement('div');
+    row.style = 'display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid #f4f4f0';
+    row.innerHTML = '<span style="flex:1;font-size:13px;color:#1a1a1a">' + k + '</span>' +
+      '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0">' +
+      '<button ontouchstart="" onclick="adjE('' + k.replace(/'/g,"\'") + '',-1)" style="width:26px;height:26px;border-radius:50%;border:1.5px solid #ddd;background:#f8f8f6;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center">−</button>' +
+      '<span id="eq' + k.replace(/[^a-z0-9]/gi,'_') + '" style="font-size:14px;font-weight:600;min-width:18px;text-align:center;color:' + (v>0?'#1a6b3c':'#bbb') + '">' + v + '</span>' +
+      '<button ontouchstart="" onclick="adjE('' + k.replace(/'/g,"\'") + '',1)" style="width:26px;height:26px;border-radius:50%;border:1.5px solid #ddd;background:#f8f8f6;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center">+</button>' +
+      '</div>';
+    list.appendChild(row);
+  });
+
+  // Update resumen
+  const sel = Object.entries(eQtys).filter(([k,v]) => v > 0);
+  const resumen = document.getElementById('e-resumen');
+  const resumenList = document.getElementById('e-resumen-list');
+  if (sel.length > 0) {
+    resumen.style.display = 'block';
+    resumenList.innerHTML = sel.map(([k,v]) => '• ' + k + ' ×' + v).join('<br>');
+  } else {
+    resumen.style.display = 'none';
+  }
+}
+
+function adjE(k, d) {
+  eQtys[k] = Math.max(0, (eQtys[k] || 0) + d);
+  renderEntregaList();
 }
 
 // Firma
@@ -320,29 +398,35 @@ function initC() {
 function clearC() { if (ctx) ctx.clearRect(0, 0, can.width, can.height); }
 function chk(el) { el.classList.toggle('on'); el.textContent = el.classList.contains('on') ? '✓' : ''; }
 function confirmar() {
-  // Recopila datos del pedido de entrega
-  const sucursal = document.querySelector('.fcard .fi b:first-child') ? 'Mitikah' : 'Sucursal';
-  const fecha = document.getElementById('fdate').textContent;
-  const items = Array.from(document.querySelectorAll('.chk span')).map(s => s.textContent).join(', ');
-  const firmada = can && !isBlankCanvas() ? 'Sí' : 'No firmado';
+  const sucursal = document.getElementById('e-sucursal').value;
+  const fecha = document.getElementById('e-fecha').value || new Date().toLocaleDateString('es-MX');
+  const observaciones = document.getElementById('obs-entrega').value || 'Sin observaciones';
+
+  // Artículos con cantidad > 0
+  const articulosEntrega = Object.entries(eQtys)
+    .filter(([k,v]) => v > 0)
+    .map(([k,v]) => '• ' + k + '  ×' + v)
+    .join('\n');
+
+  if (!articulosEntrega) { alert('Agrega al menos un artículo a entregar.'); return; }
+
+  const firmaImg = can ? can.toDataURL('image/png') : '';
 
   const templateParams = {
-    to_email: 'lemonbeautylab@gmail.com',
     sucursal: sucursal,
     fecha: fecha,
-    articulos: items,
-    firma: firmada,
-    auxiliar: 'Carlos R.',
-    mensaje: 'Entrega confirmada con firma digital desde la app de pedidos Lemon Beauty Lab.'
+    auxiliar: 'Edison',
+    recibio: observaciones,
+    articulos: articulosEntrega,
+    observaciones: observaciones,
+    firma_img: firmaImg
   };
 
-  // Mostrar OK inmediato (UX)
   document.getElementById('ok2').style.display = 'flex';
 
-  // Enviar email (cuando tengas tu cuenta EmailJS configurada)
-  emailjs.send('service_bdmo9fi', 'template_4uz76ad', templateParams)
-    .then(() => { console.log('Email enviado a lemonbeautylab@gmail.com'); })
-    .catch((err) => { console.warn('Email no enviado (configura EmailJS):', err); });
+  emailjs.send('service_bdmo9fi', 'template_hgm2iah', templateParams)
+    .then(() => { console.log('✅ Email entrega enviado'); })
+    .catch((err) => { console.warn('❌ Error entrega:', err); });
 
   setTimeout(() => sw('panel'), 2500);
 }
@@ -354,7 +438,7 @@ function isBlankCanvas() {
   return data.every(v => v === 0 || v === 255);
 }
 
-document.getElementById('fdate').textContent = new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+// fecha se setea al abrir la tab de entrega
 render();
 </script>
 </body>
